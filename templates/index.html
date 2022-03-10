@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-dark-5@1.1.3/dist/css/bootstrap-night.min.css" rel="stylesheet">  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500&family=Roboto:wght@400;500&display=swap" rel="stylesheet"> 
+  <style>
+    * {
+      font-family: "Fredoka", sans-serif;
+    }
+    .container {
+      margin-top: 30px;
+    }
+  </style>
+
+  <title>Lugnica CDN Upload</title>
+</head>
+
+<body>
+  <div class="container" style="max-width: 600px;">
+    <div class="row">
+      <div class="col">
+        <div class="mb-3 mt-3">  
+          <h2 class="mb-3" style="text-align: center;">
+            Lugnica CDN Upload Zone
+          </h2>
+
+          <div id="alert" class="alert alert-primary mb-3" role="alert">
+            Work in progress, internal use only.
+          </div>
+
+
+          <form onsubmit="event.preventDefault(); upload('{{ upload_url }}');">
+            <div class="mb-3">
+              <input class="form-control" type="file" id="file_input" name="file_input" />
+            </div>
+            <div class="mb-3">
+              <input type="password" class="form-control" name="token_input" id="token_input"
+                placeholder="Enter upload key" />
+            </div>
+            <button id="upload_btn" class="btn btn-primary">
+              Upload
+            </button>
+          </form>
+
+          <button class="btn btn-primary d-none" id="loading_btn" type="button" disabled>
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            Uploading...
+          </button>
+
+          <button type="button" id="cancel_btn" class="btn btn-secondary d-none">
+            Cancel upload
+          </button>
+        </div>
+
+        <div id="progress_wrapper" class="d-none">
+          <label id="progress_status"></label>
+          <div class="progress mb-3">
+            <div id="progress" class="progress-bar" role="progressbar" aria-valuenow="25" aria-valuemin="0"
+              aria-valuemax="100"></div>
+          </div>
+        </div>
+
+        <div id="alert_wrapper"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let progress = document.getElementById("progress");
+    let progress_wrapper = document.getElementById("progress_wrapper");
+    let progress_status = document.getElementById("progress_status");
+
+    let upload_btn = document.getElementById("upload_btn");
+    let loading_btn = document.getElementById("loading_btn");
+    let cancel_btn = document.getElementById("cancel_btn");
+
+    let alert_wrapper = document.getElementById("alert_wrapper");
+
+    let input = document.getElementById("file_input");
+    let token_input = document.getElementById("token_input");
+
+    // Function to show alerts
+    function show_alert(message, alert) {
+      alert_wrapper.innerHTML = `
+        <div id="alert" class="alert alert-${alert} alert-dismissible fade show" role="alert">
+          <span>${message}</span>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      `;
+    }
+
+    // Function to upload file
+    function upload(url) {
+      if (!input.value) {
+        show_alert("No file selected", "warning");
+
+        return;
+      }
+
+      let data = new FormData();
+      let request = new XMLHttpRequest();
+
+      request.responseType = "text";
+      alert_wrapper.innerHTML = "";
+      input.disabled = true;
+      upload_btn.classList.add("d-none");
+      loading_btn.classList.remove("d-none");
+      cancel_btn.classList.remove("d-none");
+      progress_wrapper.classList.remove("d-none");
+
+      let file = input.files[0];
+      let filename = file.name;
+      data.append("file", file);
+
+      // request progress handler
+      request.upload.addEventListener("progress", function (e) {
+        let loaded = e.loaded;
+        let total = e.total;
+        let percent_complete = (loaded / total) * 100;
+
+        progress.setAttribute(
+          "style",
+          `width: ${Math.floor(percent_complete)}%`
+        );
+        progress_status.innerText = `${Math.floor(percent_complete)}% uploaded`;
+      });
+
+      // request load handler (transfer complete)
+      request.addEventListener("load", function (e) {
+        if (request.status == 200) {
+          url = request.responseText;
+          show_alert(
+            `<a class="alert-link" href="${url}" target="_blank">${url}</a>`,
+            "success"
+          );
+        } else {
+          show_alert(`${request.responseText}`, "danger");
+        }
+
+        reset();
+      });
+
+      // request error handler
+      request.addEventListener("error", function (e) {
+        reset();
+
+        show_alert(`Error uploading file`, "warning");
+      });
+
+      // request abort handler
+      request.addEventListener("abort", function (e) {
+        reset();
+
+        show_alert(`Upload cancelled`, "primary");
+      });
+
+      // Open and send the request
+      request.open("post", url);
+      request.setRequestHeader("Authorization", token_input.value);
+      request.send(data);
+
+      cancel_btn.addEventListener("click", function () {
+        request.abort();
+      });
+    }
+
+    // Function to reset the page
+    function reset() {
+      input.value = null;
+      cancel_btn.classList.add("d-none");
+      input.disabled = false;
+      upload_btn.classList.remove("d-none");
+      loading_btn.classList.add("d-none");
+      progress_wrapper.classList.add("d-none");
+      progress.setAttribute("style", `width: 0%`);
+    }
+  </script>
+
+  <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+  
+</html>
