@@ -1,2 +1,3 @@
-Quart
-Hypercorn
+quart
+uvicorn
+hypercorn
