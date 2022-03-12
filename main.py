@@ -34,7 +34,8 @@ async def upload_file() -> Response:
 
     if not has_free_space:
         return (
-            "The server has no more allowed free space left, please wait until some files expire."
+            "The server has no more allowed free space left, please wait until some files expire.",
+            507,
         )
 
     files = await request.files
