@@ -1,5 +1,7 @@
 # filenames will be appended to this URL on successful upload
 site_url = "https://example.com/"
+# name of the site displayed in <title> and above the upload form
+site_name = "Yuzu CDN"
 # filepath for the uploads
 upath = "uploads"
 # random filename length, recommended: 6-12

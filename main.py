@@ -22,7 +22,9 @@ async def startup():
 
 @app.route("/")
 async def home() -> Response:
-    return await render_template("index.html", upload_url=config.site_url + "upload")
+    return await render_template(
+        "index.html", upload_url=config.site_url + "upload", site_name=config.site_name
+    )
 
 
 @app.route("/upload", methods=["POST"])
