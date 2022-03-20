@@ -1,13 +1,12 @@
-import mimetypes
 import os
 
 from quart import Quart, Response, render_template, request
 
 import config
-from utils import expire_files, generate_id, has_free_space
+from utils import expire_files, generate_filename, has_free_space
 
 upath = config.upath
-# either make Quart serve static files or let nginx do it (nginx.conf)
+# either make Quart serve static files or let nginx do it (nginx.example.conf)
 app = Quart(__name__, static_url_path="", static_folder=upath)
 app.config["MAX_CONTENT_LENGTH"] = 1000 * 1024 * 1024
 
@@ -41,16 +40,11 @@ async def upload_file() -> Response:
         )
 
     files = await request.files
-    if not files:
-        return "Invalid form data.", 400
-    elif "file" not in files:
+    file = files.get("file")
+    if not file:
         return "No file in body.", 400
-    file = files["file"]
 
-    ext = mimetypes.guess_extension(file.content_type)
-    filename = generate_id() + ext
-    while filename in os.listdir("uploads"):
-        filename = generate_id() + ext
+    filename = generate_filename(file)
 
     path = os.path.join(upath, filename)
     await file.save(path)
@@ -66,12 +60,11 @@ async def delete_files() -> Response:
         return "Invalid token.", 403
 
     form = await request.form
-    if not form:
-        return "Invalid form data.", 400
-    elif "files" not in form:
+    files = form.get("files")
+    if not files:
         return "No files specified.", 400
 
-    files = form["files"].split(" ")
+    files = files.split(" ")
     deleted = []
     not_found = []
     for filename in files:

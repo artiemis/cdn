@@ -1,4 +1,5 @@
 import asyncio
+import mimetypes
 import os
 import random
 import shutil
@@ -6,6 +7,8 @@ import string
 import time
 
 import config
+
+from quart.datastructures import FileStorage
 
 upath = config.upath
 
@@ -27,6 +30,14 @@ async def expire_files() -> None:
 def generate_id() -> str:
     ret = random.choices(string.ascii_lowercase + string.digits, k=config.id_length)
     return "".join(ret)
+
+
+def generate_filename(file: FileStorage) -> str:
+    ext = mimetypes.guess_extension(file.content_type)
+    filename = generate_id() + ext
+    while filename in os.listdir(upath):
+        filename = generate_id() + ext
+    return filename
 
 
 def has_free_space() -> bool:
