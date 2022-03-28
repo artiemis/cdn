@@ -46,6 +46,10 @@
               <input class="form-control" type="file" id="file_input" name="file_input" />
             </div>
             <div class="mb-3">
+              <input type="text" class="form-control" name="expiration_input" id="expiration_input"
+                placeholder="Enter expiration time" />
+            </div>
+            <div class="mb-3">
               <input type="password" class="form-control" name="token_input" id="token_input"
                 placeholder="Enter upload key" />
             </div>
@@ -91,6 +95,7 @@
 
     let input = document.getElementById("file_input");
     let token_input = document.getElementById("token_input");
+    let expiration_input = document.getElementById("expiration_input");
 
     // Function to show alerts
     function show_alert(message, alert) {
@@ -124,6 +129,9 @@
       let file = input.files[0];
       let filename = file.name;
       data.append("file", file);
+      if (expiration_input.value) {
+        data.append("expiration", expiration_input.value);
+      }
 
       // request progress handler
       request.upload.addEventListener("progress", function (e) {

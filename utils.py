@@ -8,23 +8,38 @@ import time
 
 import config
 
+from motor.motor_asyncio import AsyncIOMotorClient
 from quart.datastructures import FileStorage
 
 upath = config.upath
+mongo = AsyncIOMotorClient(config.mongo_uri)
+db = mongo[config.mongo_db][config.mongo_collection]
 
 
 async def expire_files() -> None:
     try:
         while True:
-            for filename in os.listdir(upath):
-                path = f"{upath}/{filename}"
-                mtime = os.stat(path).st_mtime
-                if time.time() - mtime > config.expiration_time:
-                    os.remove(path)
-                    print(f"[Expiration Task] Removing: {filename}")
+            now = round(time.time())
+            query = {"expires": {"$ne": 0, "$lt": now}}
+            async for upload in db.find(query):
+                _id = upload["_id"]
+                path = f"{upath}/{_id}"
+
+                os.remove(path)
+                await db.delete_one({"_id": _id})
+                print(f"[Expiration Task] Removed expired upload: {path}")
+
             await asyncio.sleep(5 * 60)
     except asyncio.CancelledError:
         pass
+
+
+def get_expiration_timestamp(hours: int) -> int:
+    if hours == 0:
+        # does not expire
+        return 0
+    expires = time.time() + (hours * 60 * 60)
+    return round(expires)
 
 
 def generate_id() -> str:
@@ -32,10 +47,10 @@ def generate_id() -> str:
     return "".join(ret)
 
 
-def generate_filename(file: FileStorage) -> str:
+async def generate_filename(file: FileStorage) -> str:
     ext = mimetypes.guess_extension(file.content_type)
     filename = generate_id() + ext
-    while filename in os.listdir(upath):
+    while await db.find_one({"_id": filename}):
         filename = generate_id() + ext
     return filename
 
