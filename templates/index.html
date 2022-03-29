@@ -42,16 +42,16 @@
 
 
           <form onsubmit="event.preventDefault(); upload('{{ upload_url }}');">
-            <div class="mb-3">
+            <div class="mb-2">
               <input class="form-control" type="file" id="file_input" name="file_input" />
             </div>
-            <div class="mb-3">
-              <input type="text" class="form-control" name="expiration_input" id="expiration_input"
-                placeholder="Enter expiration time" />
+            <div class="mb-2">
+              <label for="expiration_input" class="form-label"">Expiration time</label>
+              <input type="number" class="form-control" name="expiration_input" id="expiration_input"/>
             </div>
             <div class="mb-3">
-              <input type="password" class="form-control" name="token_input" id="token_input"
-                placeholder="Enter upload key" />
+              <label for="expiration_input" class="form-label"">Authentication key</label>
+              <input type="password" class="form-control" name="token_input" id="token_input"/>
             </div>
             <button id="upload_btn" class="btn btn-primary">
               Upload
@@ -129,8 +129,9 @@
       let file = input.files[0];
       let filename = file.name;
       data.append("file", file);
-      if (expiration_input.value) {
-        data.append("expiration", expiration_input.value);
+      let expiration = expiration_input.value
+      if (expiration) {
+        data.append("expiration", expiration);
       }
 
       // request progress handler
