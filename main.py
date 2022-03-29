@@ -32,7 +32,7 @@ async def upload_file() -> Response:
     if not token or token not in config.keys:
         return "Invalid token.", 403
 
-    if not has_free_space:
+    if not has_free_space():
         return (
             "The server has no more allowed free space left, please wait until some files are removed or expired.",
             507,
