@@ -92,9 +92,9 @@ async def delete_files() -> Response:
 
     msg = ""
     if deleted:
-        msg += f"Files deleted: {', '.join([f for f in deleted])}\n"
+        msg += f"Files deleted: {', '.join(deleted)}\n"
     if not_found:
-        msg += f"Files not found: {', '.join([f for f in not_found])}"
+        msg += f"Files not found: {', '.join(not_found)}"
     return msg
 
 
