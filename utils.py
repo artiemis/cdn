@@ -60,7 +60,7 @@ def generate_id() -> str:
 
 
 async def generate_filename(file: FileStorage) -> str:
-    ext = mimetypes.guess_extension(file.content_type)
+    ext = mimetypes.guess_extension(file.content_type) or ""
     filename = generate_id() + ext
     while await db.find_one({"_id": filename}):
         filename = generate_id() + ext
