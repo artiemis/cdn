@@ -2,9 +2,11 @@ import asyncio
 import mimetypes
 import os
 import random
+import re
 import shutil
 import string
 import time
+import unicodedata
 
 import config
 
@@ -40,6 +42,16 @@ def get_expiration_timestamp(hours: int) -> int:
         return 0
     expires = time.time() + (hours * 60 * 60)
     return round(expires)
+
+
+def sanitize_filename(filename: str) -> str:
+    if not filename:
+        return None
+
+    ret = str(filename)
+    ret = unicodedata.normalize("NFKD", ret).encode("ascii", "ignore").decode("ascii")
+    ret = re.sub(r"[^\w\s\.-]", "", ret)
+    return ret
 
 
 def generate_id() -> str:

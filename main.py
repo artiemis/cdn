@@ -3,7 +3,14 @@ import os
 from quart import Quart, Response, render_template, request
 
 import config
-from utils import db, expire_files, generate_filename, get_expiration_timestamp, has_free_space
+from utils import (
+    db,
+    expire_files,
+    sanitize_filename,
+    generate_filename,
+    get_expiration_timestamp,
+    has_free_space,
+)
 
 upath = config.upath
 # either make Quart serve static files or let nginx do it (nginx.example.conf)
@@ -45,6 +52,8 @@ async def upload_file() -> Response:
 
     form = await request.form
     expiration = form.get("expiration")
+    keep_filename = form.get("keep_filename")
+
     if expiration is None:
         expires = get_expiration_timestamp(config.default_expiration_time)
     else:
@@ -56,7 +65,15 @@ async def upload_file() -> Response:
             return "Invalid expiration time.", 400
         expires = get_expiration_timestamp(expiration)
 
-    filename = await generate_filename(file)
+    if keep_filename and keep_filename == "true":
+        filename = sanitize_filename(file.filename)
+        if not filename or filename.startswith("."):
+            return "Invalid or missing filename.", 400
+        elif await db.find_one({"_id": filename}):
+            return "File already exists.", 400
+    else:
+        filename = await generate_filename(file)
+
     path = os.path.join(upath, filename)
 
     await file.save(path)

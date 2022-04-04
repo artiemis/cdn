@@ -43,40 +43,46 @@
 
           <form onsubmit="event.preventDefault(); upload('{{ upload_url }}');">
             <div class="mb-2">
-              <input class="form-control" type="file" id="file_input" name="file_input" />
+              <input class="form-control" type="file" id="file-input" />
             </div>
             <div class="mb-2">
-              <label for="expiration_input" class="form-label"">Expiration time</label>
-              <input type="number" class="form-control" name="expiration_input" id="expiration_input"/>
+              <div class="form-check">
+                <label class="form-check-label" for="keep-filename-input">Keep original filename</label>
+                <input class="form-check-input" type="checkbox" value="" id="keep-filename-input">
+              </div>
+            </div>
+            <div class="mb-2">
+              <label for="expiration-input" class="form-label">Expiration time</label>
+              <input type="number" class="form-control" id="expiration-input"/>
             </div>
             <div class="mb-3">
-              <label for="expiration_input" class="form-label"">Authentication key</label>
-              <input type="password" class="form-control" name="token_input" id="token_input"/>
+              <label for="expiration-input" class="form-label">Authentication key</label>
+              <input type="password" class="form-control" id="token-input"/>
             </div>
-            <button id="upload_btn" class="btn btn-primary">
+            <button id="upload-btn" class="btn btn-primary">
               Upload
             </button>
           </form>
 
-          <button class="btn btn-primary d-none" id="loading_btn" type="button" disabled>
+          <button class="btn btn-primary d-none" id="loading-btn" type="button" disabled>
             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
             Uploading...
           </button>
 
-          <button type="button" id="cancel_btn" class="btn btn-secondary d-none">
+          <button type="button" id="cancel-btn" class="btn btn-secondary d-none">
             Cancel upload
           </button>
         </div>
 
-        <div id="progress_wrapper" class="d-none">
-          <label id="progress_status"></label>
+        <div id="progress-wrapper" class="d-none">
+          <label id="progress-status"></label>
           <div class="progress mb-3">
             <div id="progress" class="progress-bar" role="progressbar" aria-valuenow="25" aria-valuemin="0"
               aria-valuemax="100"></div>
           </div>
         </div>
 
-        <div id="alert_wrapper"></div>
+        <div id="alert-wrapper"></div>
       </div>
     </div>
   </div>
@@ -86,18 +92,19 @@
     const $ = (s) => document.querySelector(s);
 
     let progress = $("#progress");
-    let progress_wrapper = $("#progress_wrapper");
-    let progress_status = $("#progress_status");
+    let progressWrapper = $("#progress-wrapper");
+    let progressStatus = $("#progress-status");
 
-    let upload_btn = $("#upload_btn");
-    let loading_btn = $("#loading_btn");
-    let cancel_btn = $("#cancel_btn");
+    let uploadBtn = $("#upload-btn");
+    let loadingBtn = $("#loading-btn");
+    let cancelBtn = $("#cancel-btn");
 
-    let alert_wrapper = $("#alert_wrapper");
+    let alert_wrapper = $("#alert-wrapper");
 
-    let input = $("#file_input");
-    let token_input = $("#token_input");
-    let expiration_input = $("#expiration_input");
+    let input = $("#file-input");
+    let tokenInput = $("#token-input");
+    let expirationInput = $("#expiration-input");
+    let keepFilenameInput = $("#keep-filename-input")
 
     // Function to show alerts
     function show_alert(message, alert) {
@@ -118,10 +125,10 @@
       
       alert_wrapper.innerHTML = "";
       input.disabled = true;
-      upload_btn.classList.add("d-none");
-      loading_btn.classList.remove("d-none");
-      cancel_btn.classList.remove("d-none");
-      progress_wrapper.classList.remove("d-none");
+      uploadBtn.classList.add("d-none");
+      loadingBtn.classList.remove("d-none");
+      cancelBtn.classList.remove("d-none");
+      progressWrapper.classList.remove("d-none");
 
       let data = new FormData();
       let request = new XMLHttpRequest();
@@ -130,9 +137,15 @@
       let file = input.files[0];
       let filename = file.name;
       data.append("file", file);
-      let expiration = expiration_input.value
+
+      let expiration = expirationInput.value;
       if (expiration) {
         data.append("expiration", expiration);
+      }
+
+      let keepFilename = keepFilenameInput.checked;
+      if (keepFilename) {
+        data.append("keep_filename", "true")
       }
 
       // request progress handler
@@ -145,7 +158,7 @@
           "style",
           `width: ${Math.floor(percent_complete)}%`
         );
-        progress_status.innerText = `${Math.floor(percent_complete)}% uploaded`;
+        progressStatus.innerText = `${Math.floor(percent_complete)}% uploaded`;
       });
 
       // request load handler (transfer complete)
@@ -179,10 +192,10 @@
 
       // Open and send the request
       request.open("post", url);
-      request.setRequestHeader("Authorization", token_input.value);
+      request.setRequestHeader("Authorization", tokenInput.value);
       request.send(data);
 
-      cancel_btn.addEventListener("click", () => {
+      cancelBtn.addEventListener("click", () => {
         request.abort();
       });
     }
@@ -190,11 +203,11 @@
     // Function to reset the page
     function reset() {
       input.value = null;
-      cancel_btn.classList.add("d-none");
+      cancelBtn.classList.add("d-none");
       input.disabled = false;
-      upload_btn.classList.remove("d-none");
-      loading_btn.classList.add("d-none");
-      progress_wrapper.classList.add("d-none");
+      uploadBtn.classList.remove("d-none");
+      loadingBtn.classList.add("d-none");
+      progressWrapper.classList.add("d-none");
       progress.setAttribute("style", `width: 0%`);
     }
   </script>
