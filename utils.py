@@ -40,7 +40,7 @@ def get_expiration_timestamp(hours: int) -> int:
     if hours == 0:
         # does not expire
         return 0
-    expires = time.time() + (hours * 60 * 60)
+    expires = time.time() + (hours * 60 ** 2)
     return round(expires)
 
 

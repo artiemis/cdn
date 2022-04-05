@@ -15,7 +15,7 @@ default_expiration_time = 0
 # allowed file expiration times (in hours, 0 for no expiration)
 allowed_expiration_times = [0, 24, 48, 72, 168]
 # don't accept any uploads when when free disk space goes below this limit, 0 to disable
-disk_space_limit = 10 * 1024 * 1024 * 1024
+disk_space_limit = 10 * 1024 ** 3
 # access tokens for uploading files
 keys = ["somelongassrandomstringhere"]
 # admin access token for deleting files
