@@ -107,6 +107,11 @@
     let expirationInput = $("#expiration-input");
     let keepFilenameInput = $("#keep-filename-input")
 
+    let token = localStorage.getItem("token");
+    if (token) {
+      tokenInput.value = token;
+    }
+
     // Function to show alerts
     function show_alert(message, alert) {
       alert_wrapper.innerHTML = `
@@ -122,6 +127,10 @@
       if (!input.value) {
         show_alert("No file selected", "warning");
         return;
+      }
+
+      if (tokenInput.value) {
+        localStorage.setItem("token", tokenInput.value);
       }
       
       alert_wrapper.innerHTML = "";
