@@ -50,7 +50,7 @@ def sanitize_filename(filename: str) -> str:
 
     ret = str(filename)
     ret = unicodedata.normalize("NFKD", ret).encode("ascii", "ignore").decode("ascii")
-    ret = re.sub(r"[^\w\s\.-]", "", ret)
+    ret = re.sub(r"[^\w\s\.-]", "", ret).replace(" ", "_")
     return ret
 
 
