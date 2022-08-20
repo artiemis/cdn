@@ -1,44 +1,79 @@
-import os
+import codecs
+import re
+from pathlib import Path
+from typing import Optional
 
-from quart import Quart, Response, render_template, request
+import aiohttp
+from aiocache import cached
+from quart import Quart as _Quart
+from quart import redirect, render_template, request
+from quart.datastructures import FileStorage
+from quart_cors import cors
+from werkzeug.utils import secure_filename
 
 import config
 from utils import (
+    DISCORD_UA,
+    USER_AGENT,
     db,
     expire_files,
-    sanitize_filename,
     generate_filename,
     get_expiration_timestamp,
     has_free_space,
 )
 
-upath = config.upath
+
+class Quart(_Quart):
+    http: aiohttp.ClientSession
+
+
+upload_dir = Path(config.upload_dir)
 # either make Quart serve static files or let nginx do it (nginx.example.conf)
-app = Quart(__name__, static_url_path="", static_folder=upath)
+app = Quart(__name__, static_url_path="", static_folder=upload_dir.as_posix())
+app: Quart = cors(app, allow_origin="*")  # type: ignore
+
 app.config["MAX_CONTENT_LENGTH"] = 1000 * 1024 * 1024
 
-if not os.path.exists(upath):
-    os.mkdir(upath)
+upload_dir.mkdir(exist_ok=True)
 
 
 @app.before_serving
 async def startup():
     app.add_background_task(expire_files)
+    app.http = aiohttp.ClientSession()
 
 
-@app.route("/")
-async def home() -> Response:
-    return await render_template(
-        "index.html", upload_url=config.site_url + "upload", site_name=config.site_name
-    )
+@app.after_serving
+async def shutdown():
+    await app.http.close()
 
 
-@app.route("/upload", methods=["POST"])
-async def upload_file() -> Response:
+@app.before_request
+async def check_auth():
+    path = request.path
     token = request.headers.get("Authorization")
-    if not token or token not in config.keys:
-        return "Invalid token.", 403
 
+    if path.startswith("/upload"):
+        if not token or token not in config.keys:
+            return "Invalid token.", 401
+        request.token = token
+    elif path.startswith("/delete"):
+        if not token or token != config.admin_key:
+            return "Invalid token.", 401
+
+
+@app.get("/")
+async def home():
+    return await render_template("index.html")
+
+
+@app.get("/motd")
+async def motd():
+    return "Work in progress, internal use only.", 200
+
+
+@app.post("/upload")
+async def upload_file():
     if not has_free_space():
         return (
             "The server has no more allowed free space left, please wait until some files are removed or expired.",
@@ -46,13 +81,13 @@ async def upload_file() -> Response:
         )
 
     files = await request.files
-    file = files.get("file")
+    file: Optional[FileStorage] = files.get("file")
     if not file:
         return "No file in body.", 400
 
     form = await request.form
-    expiration = form.get("expiration")
-    keep_filename = form.get("keep_filename")
+    expiration: Optional[str | int] = form.get("expiration")
+    keep_filename: Optional[str] = form.get("keep_filename")
 
     if expiration is None:
         expires = get_expiration_timestamp(config.default_expiration_time)
@@ -66,7 +101,7 @@ async def upload_file() -> Response:
         expires = get_expiration_timestamp(expiration)
 
     if keep_filename and keep_filename == "true":
-        filename = sanitize_filename(file.filename)
+        filename = secure_filename(file.filename)
         if not filename or filename.startswith("."):
             return "Invalid or missing filename.", 400
         elif await db.find_one({"_id": filename}):
@@ -74,24 +109,28 @@ async def upload_file() -> Response:
     else:
         filename = await generate_filename(file)
 
-    path = os.path.join(upath, filename)
+    path = upload_dir / filename
 
     await file.save(path)
-    document = {"_id": filename, "expires": expires, "token": token}
+    document = {"_id": filename, "expires": expires, "token": request.token}
     await db.insert_one(document)
 
     url = config.site_url + filename
     return url, 200
 
 
-@app.route("/delete", methods=["POST"])
-async def delete_files() -> Response:
-    token = request.headers.get("Authorization")
-    if not token or token != config.admin_key:
-        return "Invalid token.", 403
+@app.get("/expiration")
+async def get_allowed_expiration():
+    return {
+        "allowed": config.allowed_expiration_times,
+        "default": config.default_expiration_time,
+    }, 200
 
+
+@app.post("/delete")
+async def delete_files():
     form = await request.form
-    files = form.get("files")
+    files: Optional[str] = form.get("files")
     if not files:
         return "No files specified.", 400
 
@@ -103,7 +142,8 @@ async def delete_files() -> Response:
         if not upload:
             not_found.append(filename)
         else:
-            os.remove(f"{upath}/{filename}")
+            path = upload_dir / filename
+            path.unlink()
             await db.delete_one({"_id": filename})
             deleted.append(filename)
 
@@ -113,6 +153,43 @@ async def delete_files() -> Response:
     if not_found:
         msg += f"Files not found: {', '.join(not_found)}"
     return msg
+
+
+@cached(ttl=60 * 60 * 12)
+async def get_tiktok_video(url: str) -> str:
+    headers = {"User-Agent": USER_AGENT}
+    async with app.http.get(url, headers=headers) as r:
+        html = await r.text()
+
+    play_addr = re.search(r"\"playAddr\":\s*\"(.*?)\"", html)
+    if play_addr:
+        play_addr = codecs.decode(play_addr.group(1), "unicode-escape")
+        return play_addr
+    else:
+        return ""
+
+
+@app.get("/e/<path:path>")
+async def video_embed(path: str):
+    TIKTOK_RE = r"@(?P<user>[\w\.-]+)/video/(?P<vid>\d+)"
+
+    match = re.search(TIKTOK_RE, path)
+    if match:
+        user, vid = match.groups()
+        tiktok_url = f"https://www.tiktok.com/@{user}/video/{vid}"
+    else:
+        return "Invalid path.", 400
+
+    play_addr = await get_tiktok_video(tiktok_url)
+    if not play_addr:
+        return f"Resource not found.", 404
+
+    if request.user_agent.string not in DISCORD_UA:
+        return redirect(tiktok_url)
+
+    return await render_template(
+        "video_embed.html", title="TikTok Embed", url=play_addr, content_type="video/mp4"
+    )
 
 
 if __name__ == "__main__":

@@ -1,19 +1,21 @@
 import asyncio
 import mimetypes
-import os
 import random
-import re
 import shutil
 import string
 import time
-import unicodedata
-
-import config
+from pathlib import Path
 
 from motor.motor_asyncio import AsyncIOMotorClient
 from quart.datastructures import FileStorage
 
-upath = config.upath
+import config
+
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:103.0) Gecko/20100101 Firefox/103.0"
+DISCORD_UA = "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)"
+
+
+upload_dir = Path(config.upload_dir)
 mongo = AsyncIOMotorClient(config.mongo_uri)
 db = mongo[config.mongo_db][config.mongo_collection]
 
@@ -24,10 +26,10 @@ async def expire_files() -> None:
             now = round(time.time())
             query = {"expires": {"$ne": 0, "$lt": now}}
             async for upload in db.find(query):
-                _id = upload["_id"]
-                path = f"{upath}/{_id}"
+                _id: str = upload["_id"]
+                path = upload_dir / _id
 
-                os.remove(path)
+                path.unlink()
                 await db.delete_one({"_id": _id})
                 print(f"[Expiration Task] Removed expired upload: {path}")
 
@@ -40,18 +42,8 @@ def get_expiration_timestamp(hours: int) -> int:
     if hours == 0:
         # does not expire
         return 0
-    expires = time.time() + (hours * 60 ** 2)
+    expires = time.time() + (hours * 60**2)
     return round(expires)
-
-
-def sanitize_filename(filename: str) -> str:
-    if not filename:
-        return None
-
-    ret = str(filename)
-    ret = unicodedata.normalize("NFKD", ret).encode("ascii", "ignore").decode("ascii")
-    ret = re.sub(r"[^\w\s\.-]", "", ret).replace(" ", "_")
-    return ret
 
 
 def generate_id() -> str:

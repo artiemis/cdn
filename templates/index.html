@@ -25,7 +25,7 @@
     }
   </style>
 
-  <title>{{ site_name }}</title>
+  <title>Yuzu CDN</title>
 </head>
 
 <body>
@@ -34,7 +34,7 @@
       <div class="col">
         <div class="mb-3 mt-3">  
           <h2 class="mb-3" style="text-align: center;">
-            {{ site_name }}
+            Yuzu CDN
           </h2>
 
           <div id="alert" class="alert alert-primary mb-3" role="alert">
@@ -42,7 +42,7 @@
           </div>
 
 
-          <form onsubmit="event.preventDefault(); upload('{{ upload_url }}');">
+          <form onsubmit="event.preventDefault(); upload();">
             <div class="mb-2">
               <input class="form-control" type="file" id="file-input" />
             </div>
@@ -90,6 +90,7 @@
   <img id="yuzu-fruit" src="https://1.bp.blogspot.com/-PMfBpfxkpWM/UrEiIRsRwkI/AAAAAAAAb7s/1lXA82iVxac/s0/fruit_yuzu.png" alt="Yuzu">
 
   <script>
+    API_BASE = "https://yuzu.lugnica.pl"
     const $ = (s) => document.querySelector(s);
 
     let progress = $("#progress");
@@ -201,7 +202,7 @@
       });
 
       // Open and send the request
-      request.open("post", url);
+      request.open("post", API_BASE + "/upload");
       request.setRequestHeader("Authorization", tokenInput.value);
       request.send(data);
 
