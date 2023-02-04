@@ -1,31 +1,14 @@
-import codecs
-import re
 from pathlib import Path
 from typing import Optional
 
-import aiohttp
-from aiocache import cached
-from quart import Quart as _Quart
-from quart import redirect, render_template, request
+from quart import Quart, render_template, request
 from quart.datastructures import FileStorage
 from quart_cors import cors
 from werkzeug.utils import secure_filename
 
 import config
-from utils import (
-    DISCORD_UA,
-    USER_AGENT,
-    db,
-    expire_files,
-    generate_filename,
-    get_expiration_timestamp,
-    has_free_space,
-)
-
-
-class Quart(_Quart):
-    http: aiohttp.ClientSession
-
+from utils import (db, expire_files, generate_filename,
+                   get_expiration_timestamp, has_free_space)
 
 upload_dir = Path(config.upload_dir)
 # either make Quart serve static files or let nginx do it (nginx.example.conf)
@@ -40,12 +23,6 @@ upload_dir.mkdir(exist_ok=True)
 @app.before_serving
 async def startup():
     app.add_background_task(expire_files)
-    app.http = aiohttp.ClientSession()
-
-
-@app.after_serving
-async def shutdown():
-    await app.http.close()
 
 
 @app.before_request
@@ -153,43 +130,6 @@ async def delete_files():
     if not_found:
         msg += f"Files not found: {', '.join(not_found)}"
     return msg
-
-
-@cached(ttl=60 * 60 * 12)
-async def get_tiktok_video(url: str) -> str:
-    headers = {"User-Agent": USER_AGENT}
-    async with app.http.get(url, headers=headers) as r:
-        html = await r.text()
-
-    play_addr = re.search(r"\"playAddr\":\s*\"(.*?)\"", html)
-    if play_addr:
-        play_addr = codecs.decode(play_addr.group(1), "unicode-escape")
-        return play_addr
-    else:
-        return ""
-
-
-@app.get("/e/<path:path>")
-async def video_embed(path: str):
-    TIKTOK_RE = r"@(?P<user>[\w\.-]+)/video/(?P<vid>\d+)"
-
-    match = re.search(TIKTOK_RE, path)
-    if match:
-        user, vid = match.groups()
-        tiktok_url = f"https://www.tiktok.com/@{user}/video/{vid}"
-    else:
-        return "Invalid path.", 400
-
-    play_addr = await get_tiktok_video(tiktok_url)
-    if not play_addr:
-        return f"Resource not found.", 404
-
-    if request.user_agent.string not in DISCORD_UA:
-        return redirect(tiktok_url)
-
-    return await render_template(
-        "video_embed.html", title="TikTok Embed", url=play_addr, content_type="video/mp4"
-    )
 
 
 if __name__ == "__main__":

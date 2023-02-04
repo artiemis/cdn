@@ -3,5 +3,3 @@ Quart-CORS
 uvicorn
 hypercorn
 motor
-aiohttp
-aiocache

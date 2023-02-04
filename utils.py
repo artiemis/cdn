@@ -11,10 +11,6 @@ from quart.datastructures import FileStorage
 
 import config
 
-USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:103.0) Gecko/20100101 Firefox/103.0"
-DISCORD_UA = "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)"
-
-
 upload_dir = Path(config.upload_dir)
 mongo = AsyncIOMotorClient(config.mongo_uri)
 db = mongo[config.mongo_db][config.mongo_collection]
